@@ -9,13 +9,26 @@
 (defvar *window-height* 128)
 (defvar *window-width* 128)
 
-(defvar *window-flags* (enum-value (#_Qt::FramelessWindowHint)))
+(defvar *window-flags* (logior
+                        (enum-value (#_Qt::FramelessWindowHint))))
+                        ;; (enum-value (#_Qt::ToolTip))))
+(defvar *window-icon* (namestring
+                       (merge-pathnames "oxalis.png" *images-directory*)))
+(defvar *figure-image* (namestring
+                        (merge-pathnames "shime0.png" *figure-images-directory*)))
+(defvar *figure-frame* 0)
+(defvar *figure-mirrored* nil)
 
 (defclass figure ()
   ((m-pressed :initform nil :accessor m-pressed)
    (m-point-x :accessor m-point-x)
    (m-point-y :accessor m-point-y)
+
+   (figure-animate-timer :accessor figure-animate-timer)
    (auto-move-timer :accessor auto-move-timer)
+   (walkingp :initform nil :accessor walkingp)
+   (walking-point-x :accessor walking-point-x)
+   (walking-point-y :accessor walking-point-y)
    
    (menu :accessor menu)
    (act-about :accessor act-about)
@@ -28,6 +41,7 @@
   (:metaclass qt-class)
   (:qt-superclass "QWidget")
   (:slots
+   ("figure_animate()" figure-animate)
    ("show_about_msg()" show-about-msg)
    ("auto_walking(bool)" auto-walking)
    ("auto_walking_move()" auto-walking-move)
@@ -40,62 +54,121 @@
 
 (defmethod initialize-instance :after ((instance figure) &key)
   (new instance)
-  (let ((tray-icon (#_new QIcon "/home/eh643027/Project/oxalis/shime1.png")))
+  (let ((window-icon (#_new QIcon *window-icon*)))
     (#_setWindowTitle instance "oxalis")
+    (#_setWindowIcon instance window-icon)
     (#_resize instance *window-height* *window-width*)
     ;;; 使視窗無邊框、透明
-    (#_setWindowFlags instance (logior *window-flags* (enum-value (#_Qt::WindowStaysOnTopHint))))
+    (#_setWindowFlags instance (logior *window-flags*
+                                       (enum-value (#_Qt::WindowStaysOnTopHint))))
     (#_setAttribute instance (enum-value (#_Qt::WA_TranslucentBackground)))
     (#_setWindowOpacity instance 1.0)
 
     ;;; 初始化物件
     ;; Timer
-    (setf auto-move-timer (#_new QTimer instance))
+    (setf (figure-animate-timer instance) (#_new QTimer instance))
+    (setf (auto-move-timer instance) (#_new QTimer instance))
     ;; Menu
-    (setf menu (#_new QMenu instance))
-    (setf act-about (#_new QAction "About" menu))
-    (setf act-walking (#_new QAction "Walking" menu))
-    (setf act-top (#_new QAction "Always on top" menu))
-    (setf act-quit (#_new QAction "Quit" menu))
+    (setf (menu instance) (#_new QMenu instance))
+    (setf (act-about instance) (#_new QAction "About" (menu instance)))
+    (setf (act-walking instance) (#_new QAction "Walking" (menu instance)))
+    (setf (act-top instance) (#_new QAction "Always on top" (menu instance)))
+    (setf (act-quit instance) (#_new QAction "Quit" (menu instance)))
     ;; 設定是否可勾選
-    (#_setCheckable act-walking t)
-    (#_setChecked act-walking nil)
-    (#_setCheckable act-top t)
-    (#_setChecked act-top nil)
+    (#_setCheckable (act-walking instance) t)
+    (#_setChecked (act-walking instance) nil)
+    (#_setCheckable (act-top instance) t)
+    (#_setChecked (act-top instance) nil)
     ;; 加進 menu
-    (#_addAction menu act-about)
-    (#_addAction menu act-walking)
-    (#_addAction menu act-top)
-    (#_addAction menu act-quit)
+    (#_addAction (menu instance) (act-about instance))
+    (#_addAction (menu instance) (act-walking instance))
+    (#_addAction (menu instance) (act-top instance))
+    (#_addAction (menu instance) (act-quit instance))
     ;; Tray
-    (setf tray (#_new QSystemTrayIcon instance))
-    (#_setIcon tray tray-icon)
-    (#_setToolTip tray "oxalis")
-    (#_show tray) ; tray 不會主動顯示
-    (#_showMessage tray "test" "ppppp") ; 顯示訊息
-    (#_setContextMenu tray menu)
+    (setf (tray instance) (#_new QSystemTrayIcon instance))
+    (#_setIcon (tray instance) window-icon)
+    (#_setToolTip (tray instance) "oxalis")
+    (#_show (tray instance)) ; tray 不會主動顯示
+    (#_setContextMenu (tray instance) (menu instance))
+    (#_setParent (tray instance) instance)
+    ; (#_delete (tray instance))
 
     
     ;;; 連接信號
     ;; Timer
-    (connect auto-move-timer "timeout()" instance "auto_walking_move()")
+    (connect (figure-animate-timer instance) "timeout()" instance "figure_animate()")
+    (connect (auto-move-timer instance) "timeout()" instance "auto_walking_move()")
     ;; Menu
-    (connect act-about "triggered()" instance "show_about_msg()")
-    (connect act-quit "triggered()" instance "close()")
-    (connect act-walking "triggered(bool)" instance "auto_walking(bool)")
-    (connect act-top "triggered(bool)" instance "always_on_top(bool)")
+    (connect (act-about instance) "triggered()" instance "show_about_msg()")
+    (connect (act-quit instance) "triggered()" instance "close()")
+    (connect (act-walking instance) "triggered(bool)" instance "auto_walking(bool)")
+    (connect (act-top instance) "triggered(bool)" instance "always_on_top(bool)")
+
+
+    ;; start
+    (#_start (figure-animate-timer instance) 300)
     ))
 
+;; 每次換不同的圖片
+(defun figure-animate (instance)
+  (setf *figure-frame* (mod (1+ *figure-frame*) 3))
+  (setf *figure-image* (namestring
+                   (merge-pathnames (format nil "shime~A.png" *figure-frame*)
+                                    *figure-images-directory*)))
+  (#_repaint instance))
+
+;; 隨機移動
 (defun auto-walking (instance bool)
   (if bool
-      (#_start auto-move-timer 1000)
-      (#_stop auto-move-timer)))
+      (progn
+        (#_showMessage (tray instance) "oxalis" "auto walking start" (#_QSystemTrayIcon::Information) 3000) ; 顯示訊息
+        (setf (walkingp instance) t)
+        ;; 隨機走到一個點
+        (setf (walking-point-x instance)
+              (random (#_width (#_desktop *qapplication*))))
+        (setf (walking-point-y instance)
+              (random (#_height (#_desktop *qapplication*))))
+        (#_start (auto-move-timer instance) 16))
+      (progn
+        (#_showMessage (tray instance) "oxalis" "auto walking stop" (#_QSystemTrayIcon::Information) 3000) ; 顯示訊息
+        (#_stop (auto-move-timer instance)))))
+
+(defun walking-arrow (num)
+  (if (> num 0)
+      -1
+      (if (< num 0)
+          1
+          0)))
 
 (defun auto-walking-move (instance)
-  (#_move instance
-          (+ (#_x (#_pos instance)) (random 10))
-          (+ (#_y (#_pos instance)) (random 10))
-          ))
+  (let ((x (- (#_x (#_pos instance)) (walking-point-x instance)))
+        (y (- (#_y (#_pos instance)) (walking-point-y instance)))
+        )
+    (format t "~A ~A~%" x y)
+    (when (= x y 0)
+      (setf (walkingp instance) nil)
+      (sleep (random 10)) ; 會整個程式停掉
+      )
+
+    (if (> (walking-arrow x) 0)
+        (setf *figure-mirrored* t)
+        (setf *figure-mirrored* nil))
+
+    (if (walkingp instance)
+        (progn
+          (#_move instance
+                  (+ (#_x (#_pos instance))
+                     (walking-arrow x))
+                  (+ (#_y (#_pos instance))
+                     (walking-arrow y)))
+          )
+        (progn
+          (setf (walkingp instance) t)
+          (setf (walking-point-x instance)
+              (random (#_width (#_desktop *qapplication*))))
+          (setf (walking-point-y instance)
+                (random (#_height (#_desktop *qapplication*))))))
+))
 
 (defun always-on-top (instance bool)
   ;; (declare (ignore bool))
@@ -126,8 +199,8 @@
 ;; 右鍵的菜單
 (defmethod context-menu-event ((instance figure) event)
   ;; 顯示位置
-  (#_move menu (#_pos (#_cursor instance)))
-  (#_show menu))
+  (#_move (menu instance) (#_pos (#_cursor instance)))
+  (#_show (menu instance)))
 
 (defun show-about-msg (instance)
   (#_QMessageBox::information
@@ -138,9 +211,16 @@
 
 ;; 畫出圖片
 (defmethod paint-event ((instance figure) event)
-  (let* ((painter (#_new QPainter instance))
-         (pixel (#_new QPixmap "/home/eh643027/Project/oxalis/shime1.png")))
+  (let* ((painter (#_new QPainter))
+         (image (#_new QImage *figure-image*))
+         (pixel))
+    ; (#_save image *figure-image* "PNG") ; 轉換成 Qt 接受的 png 格式
+    (when *figure-mirrored*
+      (setf image (#_mirrored image t nil)))
+    (setf pixel (#_QPixmap::fromImage image))
+    (#_begin painter instance)
     (#_drawPixmap painter 0 0 pixel)
+    (#_end painter)
     ))
 
 (defun main()
