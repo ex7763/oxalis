@@ -22,3 +22,4 @@ Hsu, Po-Chun
 Copyright (c) 2018 Hsu, Po-Chun
 
 ## License
+Licensed under the GPLv3 License.

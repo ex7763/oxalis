@@ -1,11 +1,4 @@
 ;;;; oxalis.asd
-
-(eval-when (:load-toplevel :compile-toplevel :execute)
-  (push :verbose-no-init *features*)
-
-  #+quicklisp (ql:quickload :verbose)
-  #-quicklisp (asdf:load-system :verbose))
-
 (asdf:defsystem #:oxalis
   :description "Desktop Pet"
   :author "許博鈞 Hsu, Po-Chun"
