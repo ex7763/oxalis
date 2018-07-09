@@ -1,0 +1,29 @@
+language: common-lisp
+
+sudo: false
+
+env:
+  global:
+    - PATH=~/.roswell/bin:$PATH
+    - ROSWELL_INSTALL_DIR=$HOME/.roswell
+  matrix:
+    - LISP=sbcl-bin
+
+install:
+  - curl -L https://raw.githubusercontent.com/roswell/roswell/release/scripts/install-for-ci.sh | sh
+
+cache:
+  directories:
+    - $HOME/.roswell
+    - $HOME/.config/common-lisp
+
+script:
+  # X server
+  - export DISPLAY=:99.0
+  - sh -e /etc/init.d/xvfb start
+  # Build binary
+  - ros -s qtools -s oxalis -e '(asdf:make :oxalis :force T)'
+
+notifications:
+  email:
+    - eh643027@gmail.com

@@ -103,13 +103,9 @@
     (connect (act-quit instance) "triggered()" instance "close()")
     (connect (act-walking instance) "triggered(bool)" instance "auto_walking(bool)")
     (connect (act-top instance) "triggered(bool)" instance "always_on_top(bool)")
-
-
-    ;; start
-    (#_start (figure-animate-timer instance) 300)
     ))
 
-;; 每次換不同的圖片
+;; 移動的動畫，每次換不同的圖片
 (defun figure-animate (instance)
   (setf *figure-frame* (mod (1+ *figure-frame*) 3))
   (setf *figure-image* (namestring
@@ -128,10 +124,13 @@
               (random (#_width (#_desktop *qapplication*))))
         (setf (walking-point-y instance)
               (random (#_height (#_desktop *qapplication*))))
-        (#_start (auto-move-timer instance) 16))
+        (#_start (auto-move-timer instance) 16)
+        ;; 開始走路的動畫
+        (#_start (figure-animate-timer instance) 300))
       (progn
         (#_showMessage (tray instance) "oxalis" "auto walking stop" (#_QSystemTrayIcon::Information) 3000) ; 顯示訊息
-        (#_stop (auto-move-timer instance)))))
+        (#_stop (auto-move-timer instance))
+        (#_stop (figure-animate-timer instance)))))
 
 (defun walking-arrow (num)
   (if (> num 0)
@@ -144,10 +143,10 @@
   (let ((x (- (#_x (#_pos instance)) (walking-point-x instance)))
         (y (- (#_y (#_pos instance)) (walking-point-y instance)))
         )
-    (format t "~A ~A~%" x y)
+    ;; (format t "~A ~A~%" x y) ; 顯示離目標位置差多遠
     (when (= x y 0)
       (setf (walkingp instance) nil)
-      (sleep (random 10)) ; 會整個程式停掉
+      (sleep (random 10)) ; TODO fix 會整個程式停掉
       )
 
     (if (> (walking-arrow x) 0)
@@ -203,11 +202,22 @@
   (#_show (menu instance)))
 
 (defun show-about-msg (instance)
-  (#_QMessageBox::information
-   instance
-   "About"
-   "<p>作者: 許博鈞</p><p>測試</p>"
-   ))
+  (let ((system (asdf:find-system :oxalis)))
+    (#_QMessageBox::about
+     instance
+     "About"
+     (format nil
+             "~a<br />
+The source code is licensed under ~a.<br />
+<br />
+Homepage: <a href=\"~a~:*\">~a</a><br />
+Author: ~a<br />
+Version: ~a"
+             (asdf:system-description system)
+             (asdf:system-license system)
+             (asdf:system-homepage system)
+             (asdf:system-author system)
+             (asdf:component-version system)))))
 
 ;; 畫出圖片
 (defmethod paint-event ((instance figure) event)
@@ -228,5 +238,3 @@
   (with-objects ((example (make-instance 'figure)))
     (#_show example)
     (#_exec *qapplication*)))
-
-(main)

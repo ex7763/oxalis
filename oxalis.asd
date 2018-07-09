@@ -7,10 +7,11 @@
   #-quicklisp (asdf:load-system :verbose))
 
 (asdf:defsystem #:oxalis
-  :description "Describe oxalis here"
-  :author "Hsu, Po-Chun"
-  :license  "Specify license here"
-  :version "0.0.1"
+  :description "Desktop Pet"
+  :author "許博鈞 Hsu, Po-Chun"
+  :homepage "https://github.com/ex7763/oxalis"
+  :license  "GPLv3"
+  :version "0.1.0"
   :serial t
   :defsystem-depends-on (:qtools)
   :depends-on (:qtcore

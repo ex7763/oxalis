@@ -2,6 +2,7 @@ LISP ?= sbcl
 
 all:
 	$(LISP) --eval '(ql:quickload :oxalis)' \
+			--eval '(oxalis:main)' \
 			--eval '(quit)'
 
 add:

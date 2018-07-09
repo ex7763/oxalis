@@ -13,5 +13,6 @@ exec ros -Q -- $0 "$@"
 (in-package :ros.script.oxalis.3740108135)
 
 (defun main (&rest argv)
-  (declare (ignorable argv)))
+  (declare (ignorable argv))
+  (oxalis:main))
 ;;; vim: set ft=lisp lisp:
