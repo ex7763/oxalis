@@ -1,4 +1,6 @@
 # oxalis
+[![Build Status](https://travis-ci.org/ex7763/oxalis.svg?branch=master)](https://travis-ci.org/ex7763/oxalis)
+
 用 common lisp + qtools 做桌面寵物。
 
 ## Usage

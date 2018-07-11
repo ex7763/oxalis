@@ -1,7 +1,7 @@
 ;;;; package.lisp
 
 (defpackage #:oxalis
-  (:use #:cl+qt)
+  (:use #:cl+qt #:alexandria)
   (:export :main))
 
 (in-package #:oxalis)

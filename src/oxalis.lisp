@@ -33,8 +33,9 @@
    (menu :accessor menu)
    (act-about :accessor act-about)
    (act-walking :accessor act-walking)
-   (act-top :accessor act-top)
    (act-quit :accessor act-quit)
+
+   (menu-config :initform (make-instance 'menu-config) :accessor menu-config)
 
    (tray :accessor tray)
    )
@@ -44,8 +45,7 @@
    ("figure_animate()" figure-animate)
    ("show_about_msg()" show-about-msg)
    ("auto_walking(bool)" auto-walking)
-   ("auto_walking_move()" auto-walking-move)
-   ("always_on_top(bool)" always-on-top))
+   ("auto_walking_move()" auto-walking-move))
   (:override ("mousePressEvent" mouse-press-event)
              ("mouseMoveEvent" mouse-move-event)
              ("mouseReleaseEvent" mouse-release-event)
@@ -70,19 +70,16 @@
     (setf (auto-move-timer instance) (#_new QTimer instance))
     ;; Menu
     (setf (menu instance) (#_new QMenu instance))
-    (setf (act-about instance) (#_new QAction "About" (menu instance)))
-    (setf (act-walking instance) (#_new QAction "Walking" (menu instance)))
-    (setf (act-top instance) (#_new QAction "Always on top" (menu instance)))
-    (setf (act-quit instance) (#_new QAction "Quit" (menu instance)))
+    (setf (act-about instance) (#_new QAction =about= (menu instance)))
+    (setf (act-walking instance) (#_new QAction =auto-walking= (menu instance)))
+    (setf (act-quit instance) (#_new QAction =quit= (menu instance)))
     ;; 設定是否可勾選
     (#_setCheckable (act-walking instance) t)
     (#_setChecked (act-walking instance) nil)
-    (#_setCheckable (act-top instance) t)
-    (#_setChecked (act-top instance) nil)
     ;; 加進 menu
     (#_addAction (menu instance) (act-about instance))
     (#_addAction (menu instance) (act-walking instance))
-    (#_addAction (menu instance) (act-top instance))
+    (#_addMenu (menu instance) (menu-config instance)) ; config-menu
     (#_addAction (menu instance) (act-quit instance))
     ;; Tray
     (setf (tray instance) (#_new QSystemTrayIcon instance))
@@ -102,7 +99,6 @@
     (connect (act-about instance) "triggered()" instance "show_about_msg()")
     (connect (act-quit instance) "triggered()" instance "close()")
     (connect (act-walking instance) "triggered(bool)" instance "auto_walking(bool)")
-    (connect (act-top instance) "triggered(bool)" instance "always_on_top(bool)")
     ))
 
 ;; 移動的動畫，每次換不同的圖片
@@ -117,18 +113,19 @@
 (defun auto-walking (instance bool)
   (if bool
       (progn
-        (#_showMessage (tray instance) "oxalis" "auto walking start" (#_QSystemTrayIcon::Information) 3000) ; 顯示訊息
+        (#_showMessage (tray instance) "oxalis" =auto-walking-start= (#_QSystemTrayIcon::Information) 3000) ; 顯示訊息
         (setf (walkingp instance) t)
         ;; 隨機走到一個點
         (setf (walking-point-x instance)
               (random (#_width (#_desktop *qapplication*))))
         (setf (walking-point-y instance)
               (random (#_height (#_desktop *qapplication*))))
+        ;; 移動的影格 16/1000 = 0.016 ~= 60fps
         (#_start (auto-move-timer instance) 16)
         ;; 開始走路的動畫
         (#_start (figure-animate-timer instance) 300))
       (progn
-        (#_showMessage (tray instance) "oxalis" "auto walking stop" (#_QSystemTrayIcon::Information) 3000) ; 顯示訊息
+        (#_showMessage (tray instance) "oxalis" =auto-walking-stop= (#_QSystemTrayIcon::Information) 3000) ; 顯示訊息
         (#_stop (auto-move-timer instance))
         (#_stop (figure-animate-timer instance)))))
 
@@ -146,7 +143,6 @@
     ;; (format t "~A ~A~%" x y) ; 顯示離目標位置差多遠
     (when (= x y 0)
       (setf (walkingp instance) nil)
-      (sleep (random 10)) ; TODO fix 會整個程式停掉
       )
 
     (if (> (walking-arrow x) 0)
@@ -161,20 +157,14 @@
                   (+ (#_y (#_pos instance))
                      (walking-arrow y)))
           )
-        (progn
+        ;; p=1/200，根據幾何分佈
+        ;; 期望值為(16/1000)*(200)=3.2s 前往一個新的點，其他時間不動
+        (when (= (random 200) 0)
           (setf (walkingp instance) t)
           (setf (walking-point-x instance)
-              (random (#_width (#_desktop *qapplication*))))
+                (random (#_width (#_desktop *qapplication*))))
           (setf (walking-point-y instance)
-                (random (#_height (#_desktop *qapplication*))))))
-))
-
-(defun always-on-top (instance bool)
-  ;; (declare (ignore bool))
-  ;; (setf *window-flags* (logior *window-flags* (enum-value (#_Qt::WindowStaysOnTopHint))))
-  ;; Qt 不能重設 windowflags，重設會呼叫 hide 強制隱藏
-  ;; (#_setWindowFlags instance *window-flags*)
-)
+                (random (#_height (#_desktop *qapplication*))))))))
 
 ;; mouse-press-event, mouse-move-event, mouse-release-event 主要處理移動視窗的功能
 (defmethod mouse-press-event ((instance figure) event)
@@ -205,21 +195,24 @@
   (let ((system (asdf:find-system :oxalis)))
     (#_QMessageBox::about
      instance
-     "About"
+     =about=
      (format nil
              "~a<br />
 The source code is licensed under ~a.<br />
 <br />
-Homepage: <a href=\"~a~:*\">~a</a><br />
-Author: ~a<br />
-Version: ~a"
-             (asdf:system-description system)
+~a: <a href=\"~a~:*\">~a</a><br />
+~a: ~a<br />
+~a: ~a"
+             =description=
              (asdf:system-license system)
+             =homepage=
              (asdf:system-homepage system)
-             (asdf:system-author system)
+             =author=
+             =author-name=
+             =version=
              (asdf:component-version system)))))
 
-;; 畫出圖片
+;; 畫出人物圖片
 (defmethod paint-event ((instance figure) event)
   (let* ((painter (#_new QPainter))
          (image (#_new QImage *figure-image*))
