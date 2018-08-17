@@ -9,11 +9,15 @@ $ oxalis
 ```
 
 ## Installation
+先安裝 roswell https://github.com/roswell/roswell
+
+
 ```
 $ ros install ex7763/oxalis
 ```
 
 ## See Also
+* [roswell](https://github.com/roswell/roswell)
 * [commonqt](https://github.com/commonqt/commonqt)
 * [Qtools](https://github.com/Shinmera/qtools)
 

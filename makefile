@@ -10,3 +10,6 @@ add:
 
 push:
 	git push -u origin master
+
+clean:
+	rm -rf *~

@@ -8,9 +8,9 @@ exec ros -Q -- $0 "$@"
   #+quicklisp (ql:quickload '(:oxalis) :silent t)
   )
 
-(defpackage :ros.script.oxalis.3740108135
+(defpackage #:ros/script/oxalis
   (:use :cl))
-(in-package :ros.script.oxalis.3740108135)
+(in-package #:ros/script/oxalis)
 
 (defun main (&rest argv)
   (declare (ignorable argv))

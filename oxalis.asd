@@ -4,7 +4,7 @@
   :author "Hsu, Po-Chun"
   :homepage "https://github.com/ex7763/oxalis"
   :license  "GPLv3"
-  :version "0.1.1"
+  :version "0.1.2"
   :serial t
   :defsystem-depends-on (:qtools)
   :depends-on (:qtcore
