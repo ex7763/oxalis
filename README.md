@@ -11,6 +11,12 @@ $ oxalis
 ## Installation
 先安裝 roswell https://github.com/roswell/roswell
 
+之後安裝 qtools
+```
+$ ros install qtools
+```
+
+最後安裝
 
 ```
 $ ros install ex7763/oxalis
